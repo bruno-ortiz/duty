@@ -1,4 +1,4 @@
-use crate::duty::build_on_duty_days;
+use crate::duty::OnDutyDaysFactory;
 use crate::writer::{CsvWriter, Writer};
 use std::fs::File;
 use std::io::stdout;
@@ -7,10 +7,12 @@ use time::Month::April;
 mod date;
 mod date_ext;
 mod duty;
+mod resolver;
 mod writer;
 
 fn main() {
-    let entries = build_on_duty_days(
+    let factory = OnDutyDaysFactory::new();
+    let entries = factory.build_on_duty_days(
         &[
             "FERNANDO FERNANDES",
             "PEDRO THIAGO MACIEL",

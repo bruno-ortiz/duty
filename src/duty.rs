@@ -1,5 +1,6 @@
 use crate::date::OnDutyDate;
 use crate::date_ext::DateExt;
+use crate::resolver::{CompositeOnDutyResolver, OnDutyDateResolver};
 use anyhow::anyhow;
 use std::cell::{Ref, RefCell};
 use std::cmp::Ordering;
@@ -26,6 +27,14 @@ impl DutyAttendant {
             has_saturday: false,
             has_sunday: false,
         }
+    }
+
+    pub fn has_saturday(&self) -> bool {
+        self.has_saturday
+    }
+
+    pub fn has_sunday(&self) -> bool {
+        self.has_sunday
     }
 
     pub fn is_on_duty(&self, date: Date) -> bool {
@@ -59,54 +68,33 @@ impl PartialOrd for DutyAttendant {
     }
 }
 
-pub fn build_on_duty_days(participants: &[&str], period: (u8, Month, i32)) -> Vec<OnDutyEntry> {
-    let mut attendants: Vec<_> = participants
-        .iter()
-        .map(|&name| Rc::new(RefCell::new(DutyAttendant::new(name))))
-        .collect();
+pub struct OnDutyDaysFactory {
+    resolver: CompositeOnDutyResolver,
+}
 
-    get_on_duty_dates(period.0, period.1, period.2)
-        .unwrap()
-        .into_iter()
-        .map(|duty_date| {
-            let entry = if duty_date.is_saturday() {
-                if let Some(a) = attendants.iter_mut().find(|d| {
-                    let attendant = d.borrow();
-                    !attendant.has_saturday && !is_on_duty_in_previous_day(duty_date, &attendant)
-                }) {
-                    let mut attendant = a.as_ref().borrow_mut();
-                    attendant.update(&duty_date);
-                    (Some(a.clone()), duty_date)
-                } else {
-                    (None, duty_date)
-                }
-            } else if duty_date.is_sunday() {
-                if let Some(a) = attendants.iter_mut().find(|a| {
-                    let attendant = a.borrow();
-                    !a.borrow().has_sunday && !is_on_duty_in_previous_day(duty_date, &attendant)
-                }) {
-                    a.as_ref().borrow_mut().update(&duty_date);
-                    (Some(a.clone()), duty_date)
-                } else {
-                    (None, duty_date)
-                }
-            } else if let Some(a) = attendants
-                .iter_mut()
-                .filter(|a| {
-                    let attendant = a.borrow();
-                    !is_on_duty_in_previous_day(duty_date, &attendant)
-                })
-                .min_by(|d1, d2| d1.borrow().total_hours().cmp(&d2.borrow().total_hours()))
-            {
-                a.as_ref().borrow_mut().update(&duty_date);
-                (Some(a.clone()), duty_date)
-            } else {
-                (None, duty_date)
-            };
-            attendants.sort();
-            entry
-        })
-        .collect()
+impl OnDutyDaysFactory {
+    pub fn new() -> OnDutyDaysFactory {
+        OnDutyDaysFactory {
+            resolver: CompositeOnDutyResolver::new(),
+        }
+    }
+
+    pub fn build_on_duty_days(
+        &self,
+        participants: &[&str],
+        period: (u8, Month, i32),
+    ) -> Vec<OnDutyEntry> {
+        let attendants: Vec<_> = participants
+            .iter()
+            .map(|&name| Rc::new(RefCell::new(DutyAttendant::new(name))))
+            .collect();
+
+        get_on_duty_dates(period.0, period.1, period.2)
+            .unwrap()
+            .into_iter()
+            .map(|duty_date| self.resolver.resolve(duty_date, &attendants))
+            .collect()
+    }
 }
 
 fn get_on_duty_dates(day: u8, month: Month, year: i32) -> anyhow::Result<Vec<OnDutyDate>> {
@@ -131,7 +119,7 @@ fn get_on_duty_dates(day: u8, month: Month, year: i32) -> anyhow::Result<Vec<OnD
     Ok(dates)
 }
 
-fn is_on_duty_in_previous_day(duty_date: OnDutyDate, attendant: &Ref<DutyAttendant>) -> bool {
+pub fn is_on_duty_in_previous_day(duty_date: OnDutyDate, attendant: &Ref<DutyAttendant>) -> bool {
     let previous_day = duty_date.start_time().date().previous_day().unwrap();
     attendant.is_on_duty(previous_day)
 }
