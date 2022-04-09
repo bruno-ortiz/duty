@@ -2,7 +2,7 @@
 
 Simple program to generate a CSV for filling spots in an on-call schedule
 
-##Install
+## Install
 
 Clone this dir and run:
 
@@ -10,7 +10,7 @@ Clone this dir and run:
 
 This will build and install the executable to your `~/.cargo/bin` path.
 
-#Usage
+# Usage
 
 First you can always do: `duty --help` to see all available options.
 
