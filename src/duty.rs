@@ -1,5 +1,6 @@
 use crate::date::OnDutyDate;
 use crate::date_ext::DateExt;
+use crate::period::Period;
 use crate::resolver::{CompositeOnDutyResolver, OnDutyDateResolver};
 use anyhow::anyhow;
 use std::cell::{Ref, RefCell};
@@ -51,9 +52,6 @@ impl DutyAttendant {
             self.has_sunday = date.is_sunday();
         }
     }
-    pub fn total_hours(&self) -> u64 {
-        self.total_hours
-    }
 }
 
 impl Ord for DutyAttendant {
@@ -79,17 +77,13 @@ impl OnDutyDaysFactory {
         }
     }
 
-    pub fn build_on_duty_days(
-        &self,
-        participants: &[&str],
-        period: (u8, Month, i32),
-    ) -> Vec<OnDutyEntry> {
+    pub fn build_on_duty_days(&self, participants: &[&str], period: Period) -> Vec<OnDutyEntry> {
         let attendants: Vec<_> = participants
             .iter()
             .map(|&name| Rc::new(RefCell::new(DutyAttendant::new(name))))
             .collect();
 
-        get_on_duty_dates(period.0, period.1, period.2)
+        get_on_duty_dates(period.day(), period.month(), period.year())
             .unwrap()
             .into_iter()
             .map(|duty_date| self.resolver.resolve(duty_date, &attendants))
@@ -127,14 +121,11 @@ pub fn is_on_duty_in_previous_day(duty_date: OnDutyDate, attendant: &Ref<DutyAtt
 #[cfg(test)]
 mod tests {
     use crate::duty::get_on_duty_dates;
-    use time::Month::April;
+    use time::Month::February;
 
     #[test]
     fn it_can_generate_on_duty_days() {
-        let dates = get_on_duty_dates(2, April, 2022).expect("Expected on duty dates");
-
-        for date in dates {
-            println!("{date}");
-        }
+        let dates = get_on_duty_dates(25, February, 2022).expect("Expected on duty dates");
+        assert_eq!(5, dates.len());
     }
 }
