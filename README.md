@@ -1,5 +1,7 @@
 # Duty
 
+[![Rust](https://github.com/bruno-ortiz/duty/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/bruno-ortiz/duty/actions/workflows/rust.yml)
+
 Simple program to generate a CSV for filling spots in an on-call schedule
 
 ## Install
